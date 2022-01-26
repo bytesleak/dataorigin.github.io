@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article#">
+    <meta charset="UTF-8" />
+
+    <meta name="generator" content="Hugo 0.91.0" /><meta name="theme-color" content="#fff" />
+    <meta name="color-scheme" content="light dark">
+
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+    
+    <meta http-equiv="Cache-Control" content="no-transform" />
+    
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+
+    <title>KubeEdge 架构记录 | jackson</title>
+
+    <link rel="stylesheet" href="/css/meme.min.1aa8cf814699ed759d8d9203fc83cd23f60e040a550203ce385da5195f471759.css"/>
+<script src="https://cdn.jsdelivr.net/gh/jmnote/plantuml-encoder@1.2.4/dist/plantuml-encoder.min.js"
+    integrity="sha256-Qsk2KRBCN5qVZX7B+8+2IvQl1Aqc723qV1tBCQaVoqo=" crossorigin="anonymous"></script>
+<script>
+    (function () {
+        let plantumlPrefix = "language-plantuml";
+        Array.prototype.forEach.call(document.querySelectorAll("[class^=" + plantumlPrefix + "]"), function (code) {
+            let image = document.createElement("IMG");
+            image.loading = 'lazy'; 
+            image.src = 'http://www.plantuml.com/plantuml/svg/~1' + plantumlEncoder.encode(code.innerText);
+            code.parentNode.insertBefore(image, code);
+            code.style.display = 'none';
+        });
+    })();
+</script>
+
+
+    
+    
+        <script src="/js/meme.min.f7bdaedef9cd6b5aecf297d16a9a8e4aa6852f239e5da6dfc3725944311ca43c.js"></script>
+    
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB&#43;Garamond:ital,wght@0,400;0,500;0,700;1,400;1,700&amp;family=Noto&#43;Serif&#43;SC:wght@400;500;700&amp;family=Source&#43;Code&#43;Pro:ital,wght@0,400;0,700;1,400;1,700&amp;display=swap" media="print" onload="this.media='all'" />
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB&#43;Garamond:ital,wght@0,400;0,500;0,700;1,400;1,700&amp;family=Noto&#43;Serif&#43;SC:wght@400;500;700&amp;family=Source&#43;Code&#43;Pro:ital,wght@0,400;0,700;1,400;1,700&amp;display=swap" /></noscript>
+
+    <meta name="author" content="jackson" /><meta name="description" content="概述 系统整体领域分为三个部分 Cloud 云端 Edge 边端 Device 设备端 其中系统架构主要集中在两个部分: 云端……" />
+
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#2a6df4" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="jackson" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="jackson" />
+    <meta name="msapplication-starturl" content="../../" />
+    <meta name="msapplication-TileColor" content="#fff" />
+    <meta name="msapplication-TileImage" content="../../icons/mstile-150x150.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    
+    
+
+    
+    <link rel="canonical" href="https://algebra2k.github.io/posts/kubeedge-architecture-record/" />
+    
+
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "datePublished": "2022-01-06T14:03:48+08:00",
+        "dateModified": "2022-01-07T18:02:24+08:00",
+        "url": "https://algebra2k.github.io/posts/kubeedge-architecture-record/",
+        "headline": "KubeEdge 架构记录",
+        "description": "概述 系统整体领域分为三个部分 Cloud 云端 Edge 边端 Device 设备端 其中系统架构主要集中在两个部分: 云端……",
+        "inLanguage" : "zh-CN",
+        "articleSection": "posts",
+        "wordCount":  2382 ,
+        "image": ["https://algebra2k.github.io/images/kubeedge-arch.png","https://algebra2k.github.io/images/kubeedge-edgehub-route-to-cloud.png","https://algebra2k.github.io/images/kubeedge-edgehub-route-to-edge.png","https://algebra2k.github.io/images/kubeedge-metamanager-meta-insert.png","https://algebra2k.github.io/images/kubeedge-metamanager-meta-update.png","https://algebra2k.github.io/images/kubeedge-metamanager-meta-delete.png","https://algebra2k.github.io/images/kubeedge-metamanager-meta-query.png","https://algebra2k.github.io/images/kubeedge-devicetwin-membership-get.png","https://algebra2k.github.io/images/kubeedge-devicetwin-membership-update.png","https://algebra2k.github.io/images/kubeedge-devicetwin-membership-detail.png","https://algebra2k.github.io/images/kubeedge-eventbus-handleMsgFromClient.jpg","https://algebra2k.github.io/images/kubeedge-eventbus-handleResMsgToClient.jpg"],
+        "author": {
+            "@type": "Person",
+            "description": "Simplicity is the ultimate form of sophistication",
+            "email": "jackson.cloudnative@gmail.com",
+            "image": "https://algebra2k.github.io/icons/avatar.png",
+            "url": "https://algebra2k.github.io/",
+            "name": "jackson"
+        },
+        "license": "[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh)",
+        "publisher": {
+            "@type": "Organization",
+            "name": "jackson",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://algebra2k.github.io/icons/apple-touch-icon.png"
+            },
+            "url": "https://algebra2k.github.io/"
+        },
+        "mainEntityOfPage": {
+            "@type": "WebSite",
+            "@id": "https://algebra2k.github.io/"
+        }
+    }
+</script>
+
+    
+
+<meta name="twitter:card" content="summary_large_image" />
+
+
+<meta name="twitter:site" content="@Qiutingy" />
+<meta name="twitter:creator" content="@Qiutingy" />
+
+    
+
+
+
+<meta property="og:title" content="KubeEdge 架构记录" />
+<meta property="og:description" content="概述 系统整体领域分为三个部分 Cloud 云端 Edge 边端 Device 设备端 其中系统架构主要集中在两个部分: 云端……" />
+<meta property="og:url" content="https://algebra2k.github.io/posts/kubeedge-architecture-record/" />
+<meta property="og:site_name" content="jackson" />
+<meta property="og:locale" content="zh" /><meta property="og:image" content="https://algebra2k.github.io/images/kubeedge-arch.png" />
+<meta property="og:type" content="article" />
+    <meta property="article:published_time" content="2022-01-06T14:03:48&#43;08:00" />
+    <meta property="article:modified_time" content="2022-01-07T18:02:24&#43;08:00" />
+    
+    <meta property="article:section" content="posts" />
+
+
+
+    
+    
+
+    
+</head>
+
+    <body>
+        <div class="container">
+            
+    <header class="header">
+        
+            <div class="header-wrapper">
+                <div class="header-inner single">
+                    
+    <div class="site-brand">
+        
+            <a href="/" class="brand">jackson</a>
+        
+    </div>
+
+                    <nav class="nav">
+    <ul class="menu" id="menu">
+        
+            
+        
+        
+        
+        
+            
+                <li class="menu-item active"><a href="/posts/"><span class="menu-item-name">文章</span></a>
+                </li>
+            
+        
+            
+                <li class="menu-item"><a href="/teachs/"><span class="menu-item-name">技术</span></a>
+                </li>
+            
+        
+            
+                <li class="menu-item"><a href=""><span class="menu-item-name">生活</span></a>
+                </li>
+            
+        
+            
+                <li class="menu-item"><a href="/tags/"><span class="menu-item-name">标签</span></a>
+                </li>
+            
+        
+            
+                <li class="menu-item"><a href=""><span class="menu-item-name">关于</span></a>
+                </li>
+            
+        
+            
+                
+                    
+                    
+                        <li class="menu-item">
+                            <a id="theme-switcher" href="#"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon theme-icon-light"><path d="M193.2 104.5l48.8-97.5a18 18 0 0128 0l48.8 97.5 103.4 -34.5a18 18 0 0119.8 19.8l-34.5 103.4l97.5 48.8a18 18 0 010 28l-97.5 48.8 34.5 103.4a18 18 0 01-19.8 19.8l-103.4-34.5-48.8 97.5a18 18 0 01-28 0l-48.8-97.5l-103.4 34.5a18 18 0 01-19.8-19.8l34.5-103.4-97.5-48.8a18 18 0 010-28l97.5-48.8-34.5-103.4a18 18 0 0119.8-19.8zM256 128a128 128 0 10.01 0M256 160a96 96 0 10.01 0"/></svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon theme-icon-dark"><path d="M27 412a256 256 0 10154-407a11.5 11.5 0 00-5 20a201.5 201.5 0 01-134 374a11.5 11.5 0 00-15 13"/></svg></a>
+                        </li>
+                    
+                
+            
+        
+            
+                
+                    
+                        
+                        
+                    
+                
+            
+        
+    </ul>
+</nav>
+
+                    
+                </div>
+            </div>
+            
+    <input type="checkbox" id="nav-toggle" aria-hidden="true" />
+    <label for="nav-toggle" class="nav-toggle"></label>
+    <label for="nav-toggle" class="nav-curtain"></label>
+
+
+        
+    </header>
+
+
+
+
+            
+            
+    <main class="main single" id="main">
+    <div class="main-inner">
+
+        
+
+        <article class="content post h-entry" data-align="justify" data-type="posts">
+
+            <h1 class="post-title p-name">KubeEdge 架构记录</h1>
+
+            
+
+            
+                
+            
+
+            
+                
+
+<div class="post-meta">
+    
+        
+        <time datetime="2022-01-06T14:03:48&#43;08:00" class="post-meta-item published dt-published"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon post-meta-icon"><path d="M148 288h-40c-6.6 0-12-5.4-12-12v-40c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm108-12v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm96 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm-96 96v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm-96 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm96-260v352c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V112c0-26.5 21.5-48 48-48h48V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h128V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h48c26.5 0 48 21.5 48 48zm-48 346V160H48v298c0 3.3 2.7 6 6 6h340c3.3 0 6-2.7 6-6z"/></svg>&nbsp;2022.1.6</time>
+    
+    
+        
+        <time datetime="2022-01-07T18:02:24&#43;08:00" class="post-meta-item modified dt-updated"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon post-meta-icon"><path d="M400 64h-48V12c0-6.627-5.373-12-12-12h-40c-6.627 0-12 5.373-12 12v52H160V12c0-6.627-5.373-12-12-12h-40c-6.627 0-12 5.373-12 12v52H48C21.49 64 0 85.49 0 112v352c0 26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V112c0-26.51-21.49-48-48-48zm-6 400H54a6 6 0 0 1-6-6V160h352v298a6 6 0 0 1-6 6zm-52.849-200.65L198.842 404.519c-4.705 4.667-12.303 4.637-16.971-.068l-75.091-75.699c-4.667-4.705-4.637-12.303.068-16.971l22.719-22.536c4.705-4.667 12.303-4.637 16.97.069l44.104 44.461 111.072-110.181c4.705-4.667 12.303-4.637 16.971.068l22.536 22.718c4.667 4.705 4.636 12.303-.069 16.97z"/></svg>&nbsp;2022.1.7</time>
+    
+    
+    
+        
+        
+        
+            
+        
+    
+    
+        
+        <span class="post-meta-item wordcount"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon post-meta-icon"><path d="M497.9 142.1l-46.1 46.1c-4.7 4.7-12.3 4.7-17 0l-111-111c-4.7-4.7-4.7-12.3 0-17l46.1-46.1c18.7-18.7 49.1-18.7 67.9 0l60.1 60.1c18.8 18.7 18.8 49.1 0 67.9zM284.2 99.8L21.6 362.4.4 483.9c-2.9 16.4 11.4 30.6 27.8 27.8l121.5-21.3 262.6-262.6c4.7-4.7 4.7-12.3 0-17l-111-111c-4.8-4.7-12.4-4.7-17.1 0zM124.1 339.9c-5.5-5.5-5.5-14.3 0-19.8l154-154c5.5-5.5 14.3-5.5 19.8 0s5.5 14.3 0 19.8l-154 154c-5.5 5.5-14.3 5.5-19.8 0zM88 424h48v36.3l-64.5 11.3-31.1-31.1L51.7 376H88v48z"/></svg>&nbsp;2382</span>
+    
+    
+        
+        <span class="post-meta-item reading-time"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon post-meta-icon"><path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm0 448c-110.5 0-200-89.5-200-200S145.5 56 256 56s200 89.5 200 200-89.5 200-200 200zm61.8-104.4l-84.9-61.7c-3.1-2.3-4.9-5.9-4.9-9.7V116c0-6.6 5.4-12 12-12h32c6.6 0 12 5.4 12 12v141.7l66.8 48.6c5.4 3.9 6.5 11.4 2.6 16.8L334.6 349c-3.9 5.3-11.4 6.5-16.8 2.6z"/></svg>&nbsp;5&nbsp;分钟</span>
+    
+    
+    
+</div>
+
+            
+
+            <nav class="contents">
+  <h2 id="contents" class="contents-title">目录</h2><ol class="toc">
+    <li><a id="contents:概述" href="#概述">概述</a></li>
+    <li><a id="contents:云端部分" href="#云端部分">云端部分</a>
+      <ol>
+        <li><a id="contents:cloudhub" href="#cloudhub">CloudHub</a></li>
+        <li><a id="contents:edge-controller" href="#edge-controller">Edge Controller</a></li>
+      </ol>
+    </li>
+    <li><a id="contents:边端部分" href="#边端部分">边端部分</a>
+      <ol>
+        <li><a id="contents:edgehub" href="#edgehub">EdgeHub</a></li>
+        <li><a id="contents:metamanager" href="#metamanager">MetaManager</a></li>
+        <li><a id="contents:devicetwin" href="#devicetwin">DeviceTwin</a>
+          <ol>
+            <li><a id="contents:devicetwin-controller" href="#devicetwin-controller">DeviceTwin Controller</a></li>
+            <li><a id="contents:modules" href="#modules">Modules</a>
+              <ol>
+                <li><a id="contents:membership-module" href="#membership-module">Membership Module</a></li>
+                <li><a id="contents:twin-module" href="#twin-module">Twin Module</a></li>
+                <li><a id="contents:communication-module" href="#communication-module">Communication Module</a></li>
+                <li><a id="contents:device-module" href="#device-module">Device Module</a></li>
+              </ol>
+            </li>
+          </ol>
+        </li>
+        <li><a id="contents:eventbus" href="#eventbus">EventBus</a>
+          <ol>
+            <li><a id="contents:flow-chart" href="#flow-chart">Flow chart</a></li>
+          </ol>
+        </li>
+        <li><a id="contents:edged" href="#edged">Edged</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav><div class="post-body e-content">
+                <h2 id="概述"><a href="#概述" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:概述" class="headings">概述</a></h2>
+<p><img src="/images/kubeedge-arch.png" alt="KubeEdge Architcture"></p>
+<p>系统整体领域分为三个部分</p>
+<ol>
+<li>Cloud 云端</li>
+<li>Edge 边端</li>
+<li>Device 设备端</li>
+</ol>
+<p>其中系统架构主要集中在两个部分:</p>
+<ol>
+<li>云端部分
+<ul>
+<li><a href="https://kubeedge.io/en/docs/architecture/cloud/cloudhub" target="_blank" rel="noopener">CloudHub</a>: CloudHub 是一个 Web Socket 服务端，负责监听云端的变化, 缓存并发送消息到 EdgeHub。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/cloud/edge_controller" target="_blank" rel="noopener">EdgeController</a>: EdgeController 是一个扩展的 Kubernetes 控制器，管理边缘节点和 Pods 的元数据确保数据能够传递到指定的边缘节点。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/cloud/device_controller" target="_blank" rel="noopener">DeviceController</a>: DeviceController 是一个扩展的 Kubernetes 控制器，管理边缘设备，确保设备信息、设备状态的云边同步。</li>
+</ul>
+</li>
+<li>边端部分
+<ul>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/edgehub" target="_blank" rel="noopener">EdgeHub</a>: EdgeHub 是一个 Web Socket 客户端，负责与边缘计算的云服务（例如 KubeEdge 架构图中的 Edge Controller）交互，包括同步云端资源更新、报告边缘主机和设备状态变化到云端等功能。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/edged" target="_blank" rel="noopener">Edged</a>: Edged 是运行在边缘节点的代理，用于管理容器化的应用程序。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/eventbus" target="_blank" rel="noopener">EventBus</a>: EventBus 是一个与 MQTT 服务器（mosquitto）交互的 MQTT 客户端，为其他组件提供订阅和发布功能。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/servicebus" target="_blank" rel="noopener">ServiceBus</a>: ServiceBus是一个运行在边缘的HTTP客户端，接受来自云上服务的请求，与运行在边缘端的HTTP服务器交互，提供了云上服务通过HTTP协议访问边缘端HTTP服务器的能力。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/devicetwin" target="_blank" rel="noopener">DeviceTwin</a>: DeviceTwin 负责存储设备状态并将设备状态同步到云，它还为应用程序提供查询接口。</li>
+<li><a href="https://kubeedge.io/en/docs/architecture/edge/metamanager" target="_blank" rel="noopener">MetaManager</a>: MetaManager 是消息处理器，位于 Edged 和 Edgehub 之间，它负责向轻量级数据库（SQLite）存储/检索元数据。</li>
+</ul>
+</li>
+</ol>
+<h2 id="云端部分"><a href="#云端部分" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:云端部分" class="headings">云端部分</a></h2>
+<h3 id="cloudhub"><a href="#cloudhub" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:cloudhub" class="headings">CloudHub</a></h3>
+<ul>
+<li>负责与EdgeHub通信</li>
+<li>支持 websocket 和 QUIC 协议</li>
+</ul>
+<p><strong>CloudHub 主要功能:</strong></p>
+<ul>
+<li>获取 message context 并创建 ChannelQ events
+<ul>
+<li>message context 对象存储在 channelQ. 对于所有创建的 nodeID channel, message context 转换为 event 对象然后传送到chennel.</li>
+</ul>
+</li>
+<li>创建 http-over-websocket 连接
+<ul>
+<li>TLS证书通过上下文对象中提供的路径加载</li>
+<li>HTTP服务器以TLS配置启动</li>
+</ul>
+</li>
+<li>服务 websocket连接
+<ul>
+<li>然后将HTTP连接升级到WebSocket连接接收Conn对象</li>
+<li>ServeConn函数，用于所有传入连接</li>
+</ul>
+</li>
+<li>从边缘读取消息</li>
+<li>往边缘写消息
+<ul>
+<li>First all event objects are received for the given nodeID</li>
+<li>The existence of same request and the liveness of the node is checked</li>
+<li>The event object is converted to message structure</li>
+<li>Write deadline is set. Then the message is passed to the websocket connection</li>
+</ul>
+</li>
+<li>推送消息到Controller
+<ul>
+<li>每次请求都通过websocket连接发送到controller,认的消息附带timestamp, clientID 和  event type</li>
+<li>如果节点断开连接，则抛出错误，并且将描述节点故障的事件推送到controller。</li>
+</ul>
+</li>
+</ul>
+<h3 id="edge-controller"><a href="#edge-controller" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:edge-controller" class="headings">Edge Controller</a></h3>
+<h2 id="边端部分"><a href="#边端部分" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:边端部分" class="headings">边端部分</a></h2>
+<h3 id="edgehub"><a href="#edgehub" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:edgehub" class="headings">EdgeHub</a></h3>
+<ul>
+<li>EdgeHub 负责与CloudHub交互</li>
+<li>使用websocket 或 QUIC 协议连接到 CloudHub</li>
+<li>支持同步云端资源的更新</li>
+<li>报告边端主机和设备的状态变更</li>
+<li>将从云接收的消息转发到边缘模块, 反之亦然</li>
+</ul>
+<p><strong>主要功能:</strong></p>
+<ul>
+<li>
+<p>keep alive</p>
+<ul>
+<li>通过 keep-alive 或者 heartbeat 消息与 CloudHub 之间保活</li>
+</ul>
+</li>
+<li>
+<p>publish client info</p>
+</li>
+<li>
+<p>route to cloud</p>
+<p><img src="/images/kubeedge-edgehub-route-to-cloud.png" alt="Route to Cloud"></p>
+</li>
+<li>
+<p>route to edge</p>
+<p><img src="/images/kubeedge-edgehub-route-to-edge.png" alt="Route to Edge"></p>
+</li>
+</ul>
+<h3 id="metamanager"><a href="#metamanager" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:metamanager" class="headings">MetaManager</a></h3>
+<p>MetaManager 在 edged 和 edgehub 处理消息. 也从 SQLite 中存储和检索消息.</p>
+<p>Metamanager 接收以下几种类型消息:</p>
+<ul>
+<li>
+<p>Insert Operation</p>
+<p><img src="/images/kubeedge-metamanager-meta-insert.png" alt="KubeEdge MetadataManager Insert Operation"></p>
+<ul>
+<li>当创建新的对象时,  通过云端接收 <code>Insert</code> 消息. 例如通过云端创建/部署新的Pod.</li>
+<li>edgehub 通过云端接收 insert operation. 然后发送消息到 metamanager 并存储在本地的数据库.</li>
+<li>metamanager 发送匿名消息到 edged, edged 处理 insert 请求, 例如启动 pod 并填充响应.</li>
+<li>metamanager 检查消息, 提取响应并发回 edged 和云端.</li>
+</ul>
+</li>
+<li>
+<p>Update Operation</p>
+<p><img src="/images/kubeedge-metamanager-meta-update.png" alt="KubeEdge MetadataManager Update Operation"></p>
+<ul>
+<li><code>Update</code> operation 会在云端、边端发生.</li>
+<li>update 消息流类似insert.</li>
+<li>此外, MetadataManager 检查本地资源是否更改. 只有当资源发生更改才会更新本地资源并发送响应到边端和云端, 这里的检查是增量的</li>
+</ul>
+</li>
+<li>
+<p>Delete Operation</p>
+<p><img src="/images/kubeedge-metamanager-meta-delete.png" alt="KubeEdge MetadataManager Delete Operation"></p>
+<ul>
+<li>delete 操作发生在云端. 例如在云端删除一个Pod.</li>
+</ul>
+</li>
+<li>
+<p>Query Operation</p>
+<p><img src="/images/kubeedge-metamanager-meta-query.png" alt="KubeEdge MetadataManager Query Operation"></p>
+<ul>
+<li><code>Query</code> operation 可以在边端查询本地元数据, 也可以通过 metammanager 查询云端的资源 (如 configmap/secret 等).</li>
+<li>metadatamanager 返回响应给edged, 资源消息格式为 <code>resKey/resType/resId</code></li>
+</ul>
+</li>
+<li>
+<p>Response Operation</p>
+<ul>
+<li><code>Response</code> operation 是在云端和边端执行任何操作后的返回. 上面其他的操作描述了 <code>Response</code> 在云端和边端流动.</li>
+</ul>
+</li>
+<li>
+<p>NodeConnection Operation</p>
+<ul>
+<li>从EdgeHub接收<code>NodeConnection</code>操作消息，以提供云端连接状态的信息。</li>
+<li>Metamanager在内存中跟踪此状态，并在某些操作中使用它，如通过云端查询。</li>
+</ul>
+</li>
+<li>
+<p>MetaSync Operation</p>
+<ul>
+<li>Metamanager 周期性地发送 <code>MetAsync</code> 操作消息以同步在边缘节点上运行的POD的状态。</li>
+<li>同步间隔可在<code>Conf/Edge.yaml</code>中配置（默认为60秒）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="devicetwin"><a href="#devicetwin" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:devicetwin" class="headings">DeviceTwin</a></h3>
+<ul>
+<li>存储设备状态</li>
+<li>处理设备属性</li>
+<li>处理设备 twin 操作</li>
+<li>在边缘设备和边端节点之间创建成员身份</li>
+<li>将设备的状态与云端同步, 并同步边端和云端的设备 twin 信息</li>
+<li>为应用程序提供查询接口</li>
+<li>DeviceTwin 由4个子模块组成
+<ul>
+<li>namely membership</li>
+<li>communication</li>
+<li>device</li>
+<li>device twin</li>
+</ul>
+</li>
+</ul>
+<h4 id="devicetwin-controller"><a href="#contents:devicetwin-controller" class="headings">DeviceTwin Controller</a></h4>
+<p>执行以下操作:</p>
+<ul>
+<li>Sync metadata to/from db ( Sqlite )</li>
+<li>Register and Start Sub Modules</li>
+<li>Distribute message to Sub Modules</li>
+<li>Health Check</li>
+</ul>
+<h4 id="modules"><a href="#contents:modules" class="headings">Modules</a></h4>
+<h5 id="membership-module"><a href="#contents:membership-module" class="headings">Membership Module</a></h5>
+<ul>
+<li>通过云端添加边缘设备的membership</li>
+<li>将新添加的设备绑定到边缘节点, 并在边缘节点和边缘设备之间创建membership</li>
+</ul>
+<p>该模块主要执行的功能:</p>
+<ol>
+<li>初始化 action callback map, 是一个 <code>map[string]Callback</code> 包括要执行的回调函数</li>
+<li>接收 message 发送到 membership module</li>
+<li>对于每个消息，读取消息相关的 action, 并调用相应的函数</li>
+<li>从 heartbeat channel 接收 heartbeat 消息并发送 heartbeat 到 controller</li>
+</ol>
+<p>下面是 membership moudle 可以执行的回调:</p>
+<ul>
+<li>
+<p><strong><code>dealMembershipGet</code></strong>
+<img src="/images/kubeedge-devicetwin-membership-get.png" alt="KubeEdge DeviceTwin Membership Get"></p>
+<ul>
+<li><code>dealMembershipGet() </code> 从缓存中获取与特定边缘节点关联的设备信息</li>
+<li>eventbus 首先从它订阅的topic (membership-get topic) 接收一条消息</li>
+<li>该消息到达 devicetwin controller, 进一步将消息发送到 membership module</li>
+<li>membership module 从缓存 (context) 中获取与边缘节点关联的设备, 并将信息发送到通信模块</li>
+<li>它还处理在执行上述过程中可能发生的错误, 并将错误发送到通信模块而不是设备详细信息</li>
+<li>通信模块将信息发送到 eventbus, eventbus 进一步发布到指定的 MQTT topic (get membership result topic)</li>
+</ul>
+</li>
+<li>
+<p><strong><code>dealMembershipUpdated</code></strong>
+<img src="/images/kubeedge-devicetwin-membership-update.png" alt="KubeEdge DeviceTwin Membership Update"></p>
+<ul>
+<li><code>dealmembershipddated()</code> 更新节点的成员资格详细信息, 它负责新设备在 edge group 的添加和删除, 如果有更新, 则更新设备详细信息</li>
+<li>edgehub 接收 CloudHub 发来的 membership 更新消息, 并将消息转发给 devicetwin controller</li>
+<li>membership moudle 添加新的设备, 删除最近删除的设备, 并更新数据库和缓存中已经存在的设备</li>
+<li>更新设备的详细信息后, 将向 device twin 的 communication module 发送一条消息，该模块将消息发送到 eventbus 模块，以便在相应的 MQTT 主题上发布。</li>
+</ul>
+</li>
+<li>
+<p><strong><code>dealMembershipDetail</code></strong>
+<img src="/images/kubeedge-devicetwin-membership-detail.png" alt="KubeEdge DeviceTwin Membership Detail"></p>
+<ul>
+<li><code>dealMembershipDetail()</code> 提供边缘节点 membership details, 在删除最近删除设备的 membership detail 后, 提供关联边缘节点的设备信息</li>
+<li>eventbus module 接收订阅的topic发送的消息, 将该消息转发到 devicetwin controller, devicetwin controller 进一步转发到 membership module</li>
+<li>membership module 添加消息中涉及到设备, 删除缓存中不存在的设备</li>
+<li>更新设备的detail后, 想 devicetwin 的 combination module 发送一条消息</li>
+</ul>
+</li>
+</ul>
+<h5 id="twin-module"><a href="#contents:twin-module" class="headings">Twin Module</a></h5>
+<p>twin 模块的主要职责是处理所有与 device twin 相关的操作. 它可以执行 device twin update, get 以及 sync-to-cloud.</p>
+<h5 id="communication-module"><a href="#contents:communication-module" class="headings">Communication Module</a></h5>
+<p>communication 模块的主要职责是确保 device twin 与其他组件之间的通信功能.</p>
+<h5 id="device-module"><a href="#contents:device-module" class="headings">Device Module</a></h5>
+<p>device 模块的主要职责是执行与设备相关的操作，例如处理设备状态更新和设备属性更新。</p>
+<h3 id="eventbus"><a href="#eventbus" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:eventbus" class="headings">EventBus</a></h3>
+<ul>
+<li>EventBus 作为 在 MQTT 相关 topic 上发送/接收消息的接口.</li>
+<li>支持3种模式：
+<ul>
+<li>InternalMQTTMode</li>
+<li>ExternalMQTTMode</li>
+<li>BothMQTTMode</li>
+</ul>
+</li>
+<li>EventBus订阅以下topic:
+<ul>
+<li><code>$hw/events/upload/#</code></li>
+<li><code>SYS/dis/upload_records</code></li>
+<li><code>SYS/dis/upload_records/+</code></li>
+<li><code>$hw/event/node/+/membership/get</code></li>
+<li><code>$hw/event/node/+/membership/get/+</code></li>
+<li><code>$hw/events/device/+/state/update</code></li>
+<li><code>$hw/events/device/+/state/update/+</code></li>
+<li><code>$hw/event/device/+/twin/+</code></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Note: topic 通配符</p>
+<ul>
+<li><code>#</code>: It must be the last character in the topic, and matches the current tree and all subtrees.</li>
+<li><code>+</code>: It matches exactly one item in the topic tree.</li>
+</ul>
+</blockquote>
+<h4 id="flow-chart"><a href="#contents:flow-chart" class="headings">Flow chart</a></h4>
+<p><strong>外部客户端发送消息到 eventbus</strong>
+<img src="/images/kubeedge-eventbus-handleMsgFromClient.jpg" alt="KubeEdge EventBus handle message from client"></p>
+<p><strong>eventbus 发送响应到外部客户端</strong>
+<img src="/images/kubeedge-eventbus-handleResMsgToClient.jpg" alt="KubeEdge EventBus handle response message to client"></p>
+<h3 id="edged"><a href="#edged" class="anchor-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon anchor-icon"><path d="M326.612 185.391c59.747 59.809 58.927 155.698.36 214.59-.11.12-.24.25-.36.37l-67.2 67.2c-59.27 59.27-155.699 59.262-214.96 0-59.27-59.26-59.27-155.7 0-214.96l37.106-37.106c9.84-9.84 26.786-3.3 27.294 10.606.648 17.722 3.826 35.527 9.69 52.721 1.986 5.822.567 12.262-3.783 16.612l-13.087 13.087c-28.026 28.026-28.905 73.66-1.155 101.96 28.024 28.579 74.086 28.749 102.325.51l67.2-67.19c28.191-28.191 28.073-73.757 0-101.83-3.701-3.694-7.429-6.564-10.341-8.569a16.037 16.037 0 0 1-6.947-12.606c-.396-10.567 3.348-21.456 11.698-29.806l21.054-21.055c5.521-5.521 14.182-6.199 20.584-1.731a152.482 152.482 0 0 1 20.522 17.197zM467.547 44.449c-59.261-59.262-155.69-59.27-214.96 0l-67.2 67.2c-.12.12-.25.25-.36.37-58.566 58.892-59.387 154.781.36 214.59a152.454 152.454 0 0 0 20.521 17.196c6.402 4.468 15.064 3.789 20.584-1.731l21.054-21.055c8.35-8.35 12.094-19.239 11.698-29.806a16.037 16.037 0 0 0-6.947-12.606c-2.912-2.005-6.64-4.875-10.341-8.569-28.073-28.073-28.191-73.639 0-101.83l67.2-67.19c28.239-28.239 74.3-28.069 102.325.51 27.75 28.3 26.872 73.934-1.155 101.96l-13.087 13.087c-4.35 4.35-5.769 10.79-3.783 16.612 5.864 17.194 9.042 34.999 9.69 52.721.509 13.906 17.454 20.446 27.294 10.606l37.106-37.106c59.271-59.259 59.271-155.699.001-214.959z"/></svg></a><a href="#contents:edged" class="headings">Edged</a></h3>
+<p>设备孪生(DeviceTwin)
+<a href="https://support.huaweicloud.com/usermanual-ief/ief_01_0028.html#section1" target="_blank" rel="noopener">https://support.huaweicloud.com/usermanual-ief/ief_01_0028.html#section1</a></p>
+
+            </div>
+
+            
+    
+    
+        <ul class="post-copyright">
+            <li class="copyright-item author"><span class="copyright-item-text">作者</span>：<a href="https://algebra2k.github.io/" class="p-author h-card" target="_blank" rel="noopener">jackson</a></li>
+            
+                
+                
+                
+                
+                <li class="copyright-item link"><span class="copyright-item-text">链接</span>：<a href="/posts/kubeedge-architecture-record/" target="_blank" rel="noopener">https://algebra2k.github.io/posts/kubeedge-architecture-record/</a></li>
+            
+            <li class="copyright-item license"><span class="copyright-item-text">许可</span>：<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></li>
+            
+        </ul>
+    
+
+
+
+        </article>
+
+        
+
+        
+    <div class="updated-badge-container">
+        <span title="Updated @ 2022-01-07 18:02:24 CST" style="cursor:help">
+
+<svg xmlns="http://www.w3.org/2000/svg" width="130" height="20" class="updated-badge"><linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="a"><rect width="130" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#a)"><path class="updated-badge-left" d="M0 0h55v20H0z"/><path class="updated-badge-right" d="M55 0h75v20H55z"/><path fill="url(#b)" d="M0 0h130v20H0z"/></g><g fill="#fff" text-anchor="middle" font-size="110"><text x="285" y="150" fill="#010101" fill-opacity=".3" textLength="450" transform="scale(.1)">updated</text><text x="285" y="140" textLength="450" transform="scale(.1)">updated</text><text x="915" y="150" fill="#010101" fill-opacity=".3" textLength="650" transform="scale(.1)">2022-01-07</text><text x="915" y="140" textLength="650" transform="scale(.1)">2022-01-07</text></g></svg>
+        </span></div>
+
+
+
+        
+
+
+        <div class="post-share">
+
+        
+
+        <div class="share-items">
+
+            
+                <div class="share-item twitter">
+                    
+                    <a href="https://twitter.com/share?url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;text=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;hashtags=%e8%be%b9%e7%bc%98%e8%ae%a1%e7%ae%97,KubeEdge,Kubernetes,%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84,&amp;via=Qiutingy" title="分享到「Twitter」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon twitter-icon"><path d="M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item facebook">
+                    
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;hashtag=%23%e8%be%b9%e7%bc%98%e8%ae%a1%e7%ae%97" title="分享到「Facebook」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon facebook-icon"><path d="M504 256C504 119 393 8 256 8S8 119 8 256c0 123.78 90.69 226.38 209.25 245V327.69h-63V256h63v-54.64c0-62.15 37-96.48 93.67-96.48 27.14 0 55.52 4.84 55.52 4.84v61h-31.28c-30.8 0-40.41 19.12-40.41 38.73V256h68.78l-11 71.69h-57.78V501C413.31 482.38 504 379.78 504 256z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item linkedin">
+                    
+                    <a href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;title=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;summary=%e6%a6%82%e8%bf%b0%20%e7%b3%bb%e7%bb%9f%e6%95%b4%e4%bd%93%e9%a2%86%e5%9f%9f%e5%88%86%e4%b8%ba%e4%b8%89%e4%b8%aa%e9%83%a8%e5%88%86%20Cloud%20%e4%ba%91%e7%ab%af%20Edge%20%e8%be%b9%e7%ab%af%20Device%20%e8%ae%be%e5%a4%87%e7%ab%af%20%e5%85%b6%e4%b8%ad%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84%e4%b8%bb%e8%a6%81%e9%9b%86%e4%b8%ad%e5%9c%a8%e4%b8%a4%e4%b8%aa%e9%83%a8%e5%88%86:%20%e4%ba%91%e7%ab%af%e2%80%a6%e2%80%a6&amp;source=jackson" title="分享到「LinkedIn」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon linkedin-icon"><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item telegram">
+                    
+                    <a href="https://t.me/share/url?url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;text=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95" title="分享到「Telegram」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" class="icon telegram-icon"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm121.8 169.9l-40.7 191.8c-3 13.6-11.1 16.9-22.4 10.5l-62-45.7-29.9 28.8c-3.3 3.3-6.1 6.1-12.5 6.1l4.4-63.1 114.9-103.8c5-4.4-1.1-6.9-7.7-2.5l-142 89.4-61.2-19.1c-13.3-4.2-13.6-13.3 2.8-19.7l239.1-92.2c11.1-4 20.8 2.7 17.2 19.5z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item weibo">
+                    
+                    <a href="https://service.weibo.com/share/share.php?&amp;url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;title=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;pic=https://algebra2k.github.io/images/kubeedge-arch.png&amp;searchPic=false" title="分享到「新浪微博」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon weibo-icon"><path d="M407 177.6c7.6-24-13.4-46.8-37.4-41.7-22 4.8-28.8-28.1-7.1-32.8 50.1-10.9 92.3 37.1 76.5 84.8-6.8 21.2-38.8 10.8-32-10.3zM214.8 446.7C108.5 446.7 0 395.3 0 310.4c0-44.3 28-95.4 76.3-143.7C176 67 279.5 65.8 249.9 161c-4 13.1 12.3 5.7 12.3 6 79.5-33.6 140.5-16.8 114 51.4-3.7 9.4 1.1 10.9 8.3 13.1 135.7 42.3 34.8 215.2-169.7 215.2zm143.7-146.3c-5.4-55.7-78.5-94-163.4-85.7-84.8 8.6-148.8 60.3-143.4 116s78.5 94 163.4 85.7c84.8-8.6 148.8-60.3 143.4-116zM347.9 35.1c-25.9 5.6-16.8 43.7 8.3 38.3 72.3-15.2 134.8 52.8 111.7 124-7.4 24.2 29.1 37 37.4 12 31.9-99.8-55.1-195.9-157.4-174.3zm-78.5 311c-17.1 38.8-66.8 60-109.1 46.3-40.8-13.1-58-53.4-40.3-89.7 17.7-35.4 63.1-55.4 103.4-45.1 42 10.8 63.1 50.2 46 88.5zm-86.3-30c-12.9-5.4-30 .3-38 12.9-8.3 12.9-4.3 28 8.6 34 13.1 6 30.8.3 39.1-12.9 8-13.1 3.7-28.3-9.7-34zm32.6-13.4c-5.1-1.7-11.4.6-14.3 5.4-2.9 5.1-1.4 10.6 3.7 12.9 5.1 2 11.7-.3 14.6-5.4 2.8-5.2 1.1-10.9-4-12.9z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item douban">
+                    
+                    <a href="https://www.douban.com/share/service?href=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;name=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;text=%e6%a6%82%e8%bf%b0%20%e7%b3%bb%e7%bb%9f%e6%95%b4%e4%bd%93%e9%a2%86%e5%9f%9f%e5%88%86%e4%b8%ba%e4%b8%89%e4%b8%aa%e9%83%a8%e5%88%86%20Cloud%20%e4%ba%91%e7%ab%af%20Edge%20%e8%be%b9%e7%ab%af%20Device%20%e8%ae%be%e5%a4%87%e7%ab%af%20%e5%85%b6%e4%b8%ad%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84%e4%b8%bb%e8%a6%81%e9%9b%86%e4%b8%ad%e5%9c%a8%e4%b8%a4%e4%b8%aa%e9%83%a8%e5%88%86:%20%e4%ba%91%e7%ab%af%e2%80%a6%e2%80%a6" title="分享到「豆瓣」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon douban-icon"><path d="M.643.92v2.412h22.714V.92H.643zm1.974 4.926v9.42h18.764v-9.42H2.617zm2.72 2.408H18.69v4.605H5.338V8.254zm1.657 7.412l-2.512.938c1.037 1.461 1.87 2.825 2.512 4.091H0v2.385h24v-2.385h-6.678c.818-1.176 1.589-2.543 2.303-4.091l-2.73-.938a29.952 29.952 0 01-2.479 5.03h-4.75c-.786-1.962-1.677-3.641-2.672-5.03Z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item qq">
+                    
+                    <a href="https://connect.qq.com/widget/shareqq/index.html?url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;title=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;summary=%e6%a6%82%e8%bf%b0%20%e7%b3%bb%e7%bb%9f%e6%95%b4%e4%bd%93%e9%a2%86%e5%9f%9f%e5%88%86%e4%b8%ba%e4%b8%89%e4%b8%aa%e9%83%a8%e5%88%86%20Cloud%20%e4%ba%91%e7%ab%af%20Edge%20%e8%be%b9%e7%ab%af%20Device%20%e8%ae%be%e5%a4%87%e7%ab%af%20%e5%85%b6%e4%b8%ad%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84%e4%b8%bb%e8%a6%81%e9%9b%86%e4%b8%ad%e5%9c%a8%e4%b8%a4%e4%b8%aa%e9%83%a8%e5%88%86:%20%e4%ba%91%e7%ab%af%e2%80%a6%e2%80%a6&amp;pics=https://algebra2k.github.io/images/kubeedge-arch.png&amp;site=jackson" title="分享到「QQ」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon qq-icon"><path d="M433.754 420.445c-11.526 1.393-44.86-52.741-44.86-52.741 0 31.345-16.136 72.247-51.051 101.786 16.842 5.192 54.843 19.167 45.803 34.421-7.316 12.343-125.51 7.881-159.632 4.037-34.122 3.844-152.316 8.306-159.632-4.037-9.045-15.25 28.918-29.214 45.783-34.415-34.92-29.539-51.059-70.445-51.059-101.792 0 0-33.334 54.134-44.859 52.741-5.37-.65-12.424-29.644 9.347-99.704 10.261-33.024 21.995-60.478 40.144-105.779C60.683 98.063 108.982.006 224 0c113.737.006 163.156 96.133 160.264 214.963 18.118 45.223 29.912 72.85 40.144 105.778 21.768 70.06 14.716 99.053 9.346 99.704z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item qzone">
+                    
+                    <a href="https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=https://algebra2k.github.io/posts/kubeedge-architecture-record/&amp;title=KubeEdge%20%e6%9e%b6%e6%9e%84%e8%ae%b0%e5%bd%95&amp;summary=%e6%a6%82%e8%bf%b0%20%e7%b3%bb%e7%bb%9f%e6%95%b4%e4%bd%93%e9%a2%86%e5%9f%9f%e5%88%86%e4%b8%ba%e4%b8%89%e4%b8%aa%e9%83%a8%e5%88%86%20Cloud%20%e4%ba%91%e7%ab%af%20Edge%20%e8%be%b9%e7%ab%af%20Device%20%e8%ae%be%e5%a4%87%e7%ab%af%20%e5%85%b6%e4%b8%ad%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84%e4%b8%bb%e8%a6%81%e9%9b%86%e4%b8%ad%e5%9c%a8%e4%b8%a4%e4%b8%aa%e9%83%a8%e5%88%86:%20%e4%ba%91%e7%ab%af%e2%80%a6%e2%80%a6&amp;pics=https://algebra2k.github.io/images/kubeedge-arch.png&amp;site=jackson" title="分享到「QQ 空间」" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon qzone-icon"><path d="M23.985 9.202c-.032-.099-.127-.223-.334-.258-.207-.036-7.351-1.406-7.351-1.406s-.105-.022-.198-.07c-.092-.047-.127-.167-.127-.167S12.447.956 12.349.77C12.25.583 12.104.532 12 .532c-.104 0-.251.051-.349.238-.098.186-3.626 6.531-3.626 6.531s-.035.12-.128.167c-.092.047-.197.07-.197.07S.556 8.908.348 8.943c-.208.036-.302.16-.333.258a.477.477 0 0 0 .125.449l5.362 5.49s.072.08.119.172c.016.104.005.21.005.21s-1.189 7.242-1.22 7.45.075.369.159.43c.083.062.233.106.421.013.189-.093 6.812-3.261 6.812-3.261s.098-.044.201-.061c.103-.017.201.061.201.061s6.623 3.168 6.812 3.261c.188.094.338.049.421-.013a.463.463 0 0 0 .159-.43c-.021-.14-.93-5.677-.93-5.677.876-.54 1.425-1.039 1.849-1.747-2.594.969-6.006 1.717-9.415 1.866-.915.041-2.41.097-3.473-.015-.678-.071-1.17-.144-1.243-.438-.053-.215.054-.46.545-.831a2640.5 2640.5 0 0 1 2.861-2.155c1.285-.968 3.559-2.47 3.559-2.731 0-.285-2.144-.781-4.037-.781-1.945 0-2.275.132-2.811.168-.488.034-.769.005-.804-.138-.06-.248.183-.389.588-.568.709-.314 1.86-.594 1.984-.626.194-.052 3.082-.805 5.618-.535 1.318.14 3.244.668 3.244 1.276 0 .342-1.721 1.494-3.225 2.597-1.149.843-2.217 1.561-2.217 1.688 0 .342 3.533 1.241 6.689 1.01l.003-.022c.048-.092.119-.172.119-.172l5.362-5.49a.477.477 0 0 0 .127-.449z"/></svg></a>
+                </div>
+            
+
+            
+                <div class="share-item qrcode">
+                    <div class="qrcode-container" title="通过「二维码」"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon qrcode-icon"><path d="M0 224h192V32H0v192zM64 96h64v64H64V96zm192-64v192h192V32H256zm128 128h-64V96h64v64zM0 480h192V288H0v192zm64-128h64v64H64v-64zm352-64h32v128h-96v-32h-32v96h-64V288h96v32h64v-32zm0 160h32v32h-32v-32zm-64 0h32v32h-32v-32z"/></svg><div id="qrcode-img"></div>
+                    </div>
+                    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+
+<script>
+    var typeNumber = 0;
+    var errorCorrectionLevel = 'L';
+    var qr = qrcode(typeNumber, errorCorrectionLevel);
+    qr.addData('https:\/\/algebra2k.github.io\/posts\/kubeedge-architecture-record\/');
+    qr.make();
+    document.getElementById('qrcode-img').innerHTML = qr.createImgTag();
+</script>
+
+                </div>
+            
+
+        </div>
+
+    </div>
+
+
+
+
+        
+    
+    
+
+
+
+        
+    
+        <div class="post-tags">
+            
+                
+                
+                
+                
+                    
+                    <a href="/tags/%E8%BE%B9%E7%BC%98%E8%AE%A1%E7%AE%97/" rel="tag" class="post-tags-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon tag-icon"><path d="M0 252.118V48C0 21.49 21.49 0 48 0h204.118a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882L293.823 497.941c-18.745 18.745-49.137 18.745-67.882 0L14.059 286.059A48 48 0 0 1 0 252.118zM112 64c-26.51 0-48 21.49-48 48s21.49 48 48 48 48-21.49 48-48-21.49-48-48-48z"/></svg>边缘计算</a>
+                
+            
+                
+                
+                
+                
+                    
+                    <a href="/tags/kubeedge/" rel="tag" class="post-tags-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon tag-icon"><path d="M0 252.118V48C0 21.49 21.49 0 48 0h204.118a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882L293.823 497.941c-18.745 18.745-49.137 18.745-67.882 0L14.059 286.059A48 48 0 0 1 0 252.118zM112 64c-26.51 0-48 21.49-48 48s21.49 48 48 48 48-21.49 48-48-21.49-48-48-48z"/></svg>KubeEdge</a>
+                
+            
+                
+                
+                
+                
+                    
+                    <a href="/tags/kubernetes/" rel="tag" class="post-tags-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon tag-icon"><path d="M0 252.118V48C0 21.49 21.49 0 48 0h204.118a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882L293.823 497.941c-18.745 18.745-49.137 18.745-67.882 0L14.059 286.059A48 48 0 0 1 0 252.118zM112 64c-26.51 0-48 21.49-48 48s21.49 48 48 48 48-21.49 48-48-21.49-48-48-48z"/></svg>Kubernetes</a>
+                
+            
+                
+                
+                
+                
+                    
+                    <a href="/tags/%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84/" rel="tag" class="post-tags-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon tag-icon"><path d="M0 252.118V48C0 21.49 21.49 0 48 0h204.118a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882L293.823 497.941c-18.745 18.745-49.137 18.745-67.882 0L14.059 286.059A48 48 0 0 1 0 252.118zM112 64c-26.51 0-48 21.49-48 48s21.49 48 48 48 48-21.49 48-48-21.49-48-48-48z"/></svg>系统架构</a>
+                
+            
+        </div>
+    
+
+
+
+        
+
+
+        
+
+
+        
+    
+        
+        
+    
+    
+    
+    
+        <ul class="post-nav">
+            
+            
+                <li class="post-nav-next">
+                    <a href="/posts/how-reading-paper/" rel="next">如何阅读论文 &gt;</a>
+                </li>
+            
+        </ul>
+    
+
+
+
+        
+
+
+    </div>
+</main>
+
+
+            
+    <div id="back-to-top" class="back-to-top">
+        <a href="#"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="icon arrow-up"><path d="M34.9 289.5l-22.2-22.2c-9.4-9.4-9.4-24.6 0-33.9L207 39c9.4-9.4 24.6-9.4 33.9 0l194.3 194.3c9.4 9.4 9.4 24.6 0 33.9L413 289.4c-9.5 9.5-25 9.3-34.3-.4L264 168.6V456c0 13.3-10.7 24-24 24h-32c-13.3 0-24-10.7-24-24V168.6L69.2 289.1c-9.3 9.8-24.8 10-34.3.4z"/></svg></a>
+    </div>
+
+
+            
+    <footer id="footer" class="footer">
+        <div class="footer-inner">
+            <div class="site-info">©&nbsp;1969–2022&nbsp;<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon footer-icon"><path d="M462.3 62.6C407.5 15.9 326 24.3 275.7 76.2L256 96.5l-19.7-20.3C186.1 24.3 104.5 15.9 49.7 62.6c-62.8 53.6-66.1 149.8-9.9 207.9l193.5 199.8c12.5 12.9 32.8 12.9 45.3 0l193.5-199.8c56.3-58.1 53-154.3-9.8-207.9z"/></svg>&nbsp;jackson</div><div class="powered-by">Powered by <a href="https://github.com/gohugoio/hugo" target="_blank" rel="noopener">Hugo</a> | Theme is <a href="https://github.com/reuixiy/hugo-theme-meme" target="_blank" rel="noopener">MemE</a></div><div class="site-copyright"><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></div>
+
+            
+    
+        <ul class="socials"><li class="socials-item">
+                    <a href="/rss.xml" target="_blank" rel="external noopener" title="RSS"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon social-icon"><path d="M19.199 24C19.199 13.467 10.533 4.8 0 4.8V0c13.165 0 24 10.835 24 24h-4.801zM3.291 17.415c1.814 0 3.293 1.479 3.293 3.295 0 1.813-1.485 3.29-3.301 3.29C1.47 24 0 22.526 0 20.71s1.475-3.294 3.291-3.295zM15.909 24h-4.665c0-6.169-5.075-11.245-11.244-11.245V8.09c8.727 0 15.909 7.184 15.909 15.91z"/></svg></a>
+                </li><li class="socials-item">
+                    <a href="mailto:jackson.cloudnative@gmail.com" target="_blank" rel="external noopener" title="Email"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon social-icon"><path d="M464 64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V112c0-26.51-21.49-48-48-48zm0 48v40.805c-22.422 18.259-58.168 46.651-134.587 106.49-16.841 13.247-50.201 45.072-73.413 44.701-23.208.375-56.579-31.459-73.413-44.701C106.18 199.465 70.425 171.067 48 152.805V112h416zM48 400V214.398c22.914 18.251 55.409 43.862 104.938 82.646 21.857 17.205 60.134 55.186 103.062 54.955 42.717.231 80.509-37.199 103.053-54.947 49.528-38.783 82.032-64.401 104.947-82.653V400H48z"/></svg></a>
+                </li><li class="socials-item">
+                    <a href="https://github.com/algebra2k" target="_blank" rel="external noopener" title="GitHub"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon social-icon"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+                </li><li class="socials-item">
+                    <a href="https://twitter.com/Qiutingy" target="_blank" rel="external noopener" title="Twitter"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="icon social-icon"><path d="M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z"/></svg></a>
+                </li><li class="socials-item">
+                    <a href="https://t.me/algebra2k" target="_blank" rel="external noopener" title="Telegram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" class="icon social-icon"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm121.8 169.9l-40.7 191.8c-3 13.6-11.1 16.9-22.4 10.5l-62-45.7-29.9 28.8c-3.3 3.3-6.1 6.1-12.5 6.1l4.4-63.1 114.9-103.8c5-4.4-1.1-6.9-7.7-2.5l-142 89.4-61.2-19.1c-13.3-4.2-13.6-13.3 2.8-19.7l239.1-92.2c11.1-4 20.8 2.7 17.2 19.5z"/></svg></a>
+                </li></ul>
+    
+
+
+
+            
+        </div>
+    </footer>
+
+
+        </div>
+        
+
+        
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha256-gPJfuwTULrEAAcI3X4bALVU/2qBU+QY/TpoD3GO+Exw=" crossorigin="anonymous">
+<script>
+    if (typeof renderMathInElement === 'undefined') {
+        var getScript = (options) => {
+            var script = document.createElement('script');
+            script.defer = true;
+            script.crossOrigin = 'anonymous';
+            Object.keys(options).forEach((key) => {
+                script[key] = options[key];
+            });
+            document.body.appendChild(script);
+        };
+        getScript({
+            src: 'https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js',
+            integrity: 'sha256-YTW9cMncW/ZQMhY69KaUxIa2cPTxV87Uh627Gf5ODUw=',
+            onload: () => {
+                getScript({
+                    src: 'https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/mhchem.min.js',
+                    integrity: 'sha256-yzSfYeVsWJ1x+2g8CYHsB/Mn7PcSp8122k5BM4T3Vxw=',
+                    onload: () => {
+                        getScript({
+                            src: 'https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js',
+                            integrity: 'sha256-fxJzNV6hpc8tgW8tF0zVobKa71eTCRGTgxFXt1ZpJNM=',
+                            onload: () => {
+                                renderKaTex();
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    } else {
+        renderKaTex();
+    }
+    function renderKaTex() {
+        renderMathInElement(
+            document.body,
+            {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false}
+                ]
+            }
+        );
+    }
+</script>
+
+
+
+
+
+
+
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@latest/dist/medium-zoom.min.js"></script>
+
+<script>
+    let imgNodes = document.querySelectorAll('div.post-body img');
+    imgNodes = Array.from(imgNodes).filter(node => node.parentNode.tagName !== "A");
+
+    mediumZoom(imgNodes, {
+        background: 'hsla(var(--color-bg-h), var(--color-bg-s), var(--color-bg-l), 0.95)'
+    })
+</script>
+
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/instant.page@5.1.0/instantpage.min.js" type="module" defer></script>
+
+
+
+
+
+
+
+    </body>
+</html>

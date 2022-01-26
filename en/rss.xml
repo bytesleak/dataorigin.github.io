@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+
+
+
+
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>jackson</title>
+        <link>https://algebra2k.github.io/en/</link>
+        <description>Blog of reuixiy in English.</description>
+        <generator>Hugo 0.91.0 https://gohugo.io/</generator>
+        
+            <language>en-US</language>
+        
+        
+            <managingEditor>jackson.cloudnative@gmail.com (jackson)</managingEditor>
+        
+        
+            <webMaster>jackson.cloudnative@gmail.com (jackson)</webMaster>
+        
+        
+            <copyright>[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en)</copyright>
+        
+        <lastBuildDate>Wed, 26 Jan 2022 14:21:16 &#43;0800</lastBuildDate>
+        
+            <atom:link rel="self" type="application/rss&#43;xml" href="https://algebra2k.github.io/en/rss.xml" />
+        
+        
+    </channel>
+</rss>
